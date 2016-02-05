@@ -1,0 +1,7 @@
+*.pyc
+.idea/
+*.Rhistory
+*.RData
+.Rproj.user
+.DS_Store
+*.Rproj
