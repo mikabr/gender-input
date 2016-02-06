@@ -1,7 +1,7 @@
 word,count
 the,128
 you,114
-it,90
+it,91
 there,50
 a,43
 that's,30
@@ -16,15 +16,16 @@ let's,21
 now,21
 this,21
 right,19
+want,19
 here,18
-is,17
+is,18
 mhm,17
 on,17
 over,17
 your,17
+and,16
+do,16
 turn,16
-and,15
-do,15
 don't,15
 fell,15
 okay,15
@@ -33,7 +34,6 @@ what,15
 all,14
 can,14
 oh,14
-,13
 for,13
 going,13
 gonna,13
@@ -58,11 +58,10 @@ with,11
 xxx,11
 book,10
 look,10
-want,10
 goes,9
 mouse,9
+ta,9
 turtle,9
-wan,9
 again,8
 big,8
 bridge,8
@@ -76,6 +75,7 @@ car,7
 have,7
 he,7
 head,7
+peekaboo,7
 seesaw,7
 some,7
 too,7
@@ -97,7 +97,6 @@ here's,5
 more,5
 open,5
 or,5
-peekaboo,5
 play,5
 suitcase,5
 take,5
@@ -150,7 +149,6 @@ man,3
 nice,3
 other,3
 out_of,3
-peek,3
 pieces,3
 pocketbook,3
 roll,3
@@ -212,6 +210,7 @@ truck,2
 two,2
 woof,2
 would,2
+wrist,2
 you've,2
 zoom,2
 Godfather,1
@@ -254,7 +253,6 @@ comes,1
 couch,1
 cover,1
 crying,1
-d,1
 decided,1
 direction,1
 dog,1
@@ -301,6 +299,7 @@ opening,1
 pack,1
 part,1
 patting,1
+peek,1
 pictures,1
 place,1
 pointing,1
@@ -355,7 +354,6 @@ whole,1
 will,1
 window,1
 working,1
-wrist,1
 writing,1
 wrong,1
 yellow,1
