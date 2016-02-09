@@ -3,10 +3,6 @@ import csv
 import nltk
 from childes import CHILDESCorpusReader
 
-corpus_root = nltk.data.find('corpora/childes/data-xml/')
-#corpus_root = nltk.data.find('corpora/childes/data-xml/English/Eng-NA-MOR/')
-#corpus_reader = CHILDESCorpusReader(corpus_root, 'Bates/Free.*/.*.xml')
-
 # Takes a language, returns a CHIDLESCorpusReader for that language
 def get_corpus_reader(language):
     return CHILDESCorpusReader(corpus_root, r'%s.*/.*\.xml' % language[:3].title())
@@ -15,7 +11,6 @@ def get_corpus_reader(language):
 def get_file_counts(corpus_reader, corpus_file):
     age = corpus_reader.age(corpus_file, month=True)[0]
     sex = corpus_reader.sex(corpus_file)[0]
-    corpus_words = corpus_reader.words(corpus_file, speaker='MOT', stem=True)
     corpus_participants = corpus_reader.participants(corpus_file)[0]
     not_child = [value['id'] for key, value in corpus_participants.iteritems() if key != 'CHI']
     corpus_words = corpus_reader.words(corpus_file, speaker=not_child, replace=True)
@@ -32,7 +27,8 @@ def get_lang_counts(language):
     for corpus_file in corpus_reader.fileids():
         get_file_counts(corpus_reader, corpus_file)
 
-#corpus_root = nltk.data.find('corpora/childes/data-xml/English/Eng-NA-MOR/')
-#corpus_reader = CHILDESCorpusReader(corpus_root, 'Bates/Free.*/.*.xml')
-get_file_counts(corpus_reader, corpus_reader.fileids()[3])
-get_lang_counts("english")
+#corpus_root = nltk.data.find('corpora/childes/data-xml/')
+corpus_root = nltk.data.find('corpora/childes/data-xml/English/Eng-NA-MOR/Bloom70')
+corpus_reader = CHILDESCorpusReader(corpus_root, r'.*/.*\.xml')
+for f in corpus_reader.fileids():
+    get_file_counts(corpus_reader, f)

@@ -279,6 +279,7 @@ class CHILDESCorpusReader(XMLCorpusReader):
 
     def _get_words(self, fileid, speaker, sent, stem, relation, pos,
             strip_space, replace):
+        print 'get words'
         if isinstance(speaker, str) and speaker != 'ALL':  # ensure we have a list of speakers
             speaker = [ speaker ]
         xmldoc = ElementTree.parse(fileid).getroot()
@@ -291,16 +292,29 @@ class CHILDESCorpusReader(XMLCorpusReader):
                 for xmlword in xmlsent.findall('.//{%s}w' % NS):
                     infl = None ; suffixStem = None
                     # getting replaced words
-                    if replace and xmlsent.find('.//{%s}w/{%s}replacement'
-                                                % (NS,NS)):
-                        xmlword = xmlsent.find('.//{%s}w/{%s}replacement/{%s}w'
-                                               % (NS,NS,NS))
-                    elif replace and xmlsent.find('.//{%s}w/{%s}wk' % (NS,NS)):
-                        xmlword = xmlsent.find('.//{%s}w/{%s}wk' % (NS,NS))
+                    xstr = lambda s: "" if s is None else str(s)
+                    if replace and xmlword.find('.//{%s}replacement' % (NS)):
+                        continue
+                        #print "found repl", xmlword.text
+                        #repl = xmlword.find('.//{%s}replacement' % (NS))
+                        #xmlword = repl.find('.//{%s}w' % (NS))
+                    #elif replace and xmlsent.find('.//{%s}w/{%s}wk' % (NS,NS)):
+                    #    xmlword = xmlsent.find('.//{%s}w/{%s}wk' % (NS,NS))
+                    if replace and xmlword.findall('.//{%s}shortening' % (NS)):
+                        #print "found short"
+                        shortenings = xmlword.findall('.//{%s}shortening' % (NS))
+                        text = xstr(xmlword.text) + "".join([xstr(short.text) + xstr(short.tail) for short in shortenings])
+                        xmlword.text = text
+                    if xmlword.find('.//{%s}langs' % (NS)):
+                        xmlword.text = xmlword.find('.//{%s}langs' % (NS)).tail
+                    if not xmlword.find('.//{%s}p' % (NS)) is None:
+                        #print "found p"
+                        xmlword.text = xstr(xmlword.text) + xstr(xmlword.find('.//{%s}p' % (NS)).tail)
                     # get text
                     if xmlword.text:
                         word = xmlword.text
                     else:
+                        print 'empty word'
                         word = ''
                     # strip tailing space
                     if strip_space:
