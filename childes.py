@@ -290,6 +290,10 @@ class CHILDESCorpusReader(XMLCorpusReader):
             # select speakers
             if speaker == 'ALL' or xmlsent.get('who') in speaker:
                 for xmlword in xmlsent.findall('.//{%s}w' % NS):
+
+                    if xmlword.get('type') == 'omission':
+                        continue
+
                     infl = None ; suffixStem = None
 
                     # getting replaced words
