@@ -2,6 +2,7 @@ import os
 import csv
 import nltk
 from childes import CHILDESCorpusReader
+from unicode_csv import *
 
 # Takes a language, returns a CHIDLESCorpusReader for that language
 def get_corpus_reader(language):
@@ -9,6 +10,7 @@ def get_corpus_reader(language):
 
 # Takes a fileid, gets counts of all the words for that file, writes a csv
 def get_file_counts(corpus_reader, corpus_file):
+    print corpus_file
     age = corpus_reader.age(corpus_file, month=True)[0]
     sex = corpus_reader.sex(corpus_file)[0]
     corpus_participants = corpus_reader.participants(corpus_file)[0]
@@ -16,10 +18,13 @@ def get_file_counts(corpus_reader, corpus_file):
     corpus_words = corpus_reader.words(corpus_file, speaker=not_child, replace=True)
     freqs = nltk.FreqDist(corpus_words)
     filename = 'data/%s_%s_%s.csv' % (os.path.basename(corpus_file).split('.')[0], age, sex)
-    writer = csv.writer(open(filename, 'w'))
+    writer = UnicodeWriter(open(filename, 'w'))
     writer.writerow(["word", "count"])
     for word, count in freqs.iteritems():
-        writer.writerow([word, count])
+        try:
+            writer.writerow([word, str(count)])
+        except:
+            print "couldn't write word %s with count %d" % (word, count)
 
 # Takes a language, writes csvs for the word counts of each file in that language
 def get_lang_counts(language):
@@ -27,8 +32,7 @@ def get_lang_counts(language):
     for corpus_file in corpus_reader.fileids():
         get_file_counts(corpus_reader, corpus_file)
 
-#corpus_root = nltk.data.find('corpora/childes/data-xml/')
-corpus_root = nltk.data.find('corpora/childes/data-xml/English/Eng-NA-MOR/Bloom70')
+corpus_root = nltk.data.find('corpora/childes/data-xml/English/Testing')
 corpus_reader = CHILDESCorpusReader(corpus_root, r'.*/.*\.xml')
 for f in corpus_reader.fileids():
     get_file_counts(corpus_reader, f)
