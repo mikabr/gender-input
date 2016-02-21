@@ -42,6 +42,11 @@ library(plyr)
 read.CLAN.file <- function(f) {
 	
 	tmp <- readLines(f)
+	
+	if (tmp[length(tmp)] == '@End'){
+		tmp = tmp[1:length(tmp)-1]
+	}
+	
 	#print(f)
 	#Cycle through utterances and make a line for each.
 	alltext <- paste(tmp, collapse="\n")	
@@ -162,7 +167,7 @@ get_utt_info <- function(u){
 	
 	#Next, delete internal notation we don't need here
 	#"[()<>&@:]"
-	words <- as.vector(mapply(gsub, "[()<>&:]","",words))
+	words <- as.vector(mapply(gsub, "()&:","",words))
 	
 	#Remove sentence-internal periods!
 	words[1:(length(words)-1)] <- as.vector(mapply(gsub, "[.]","",words[1:(length(words)-1)]))
