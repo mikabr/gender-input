@@ -42,6 +42,11 @@ library(plyr)
 read.CLAN.file <- function(f) {
 	
 	tmp <- readLines(f)
+	
+	if (tmp[length(tmp)] == '@End'){
+		tmp = tmp[1:length(tmp)-1]
+	}
+	
 	#print(f)
 	#Cycle through utterances and make a line for each.
 	alltext <- paste(tmp, collapse="\n")	
@@ -70,9 +75,6 @@ read.CLAN.file <- function(f) {
 	data$Age <- chidata[4]
 	data$Gender <- chidata[5]
 	
-	#Add utt line numbers
-	data$Line.No 
-
 		
 	#Get rid of some yucky processing columns we don't want
 	data$t.as.matrix.fields.. <- NULL
@@ -100,6 +102,10 @@ get_utt_info <- function(u){
 	myrow$Speaker <- substr(fields[1], 1,3)
 	myrow$Verbatim <- substr(fields[1], 6,nchar(fields[1])-1)
 	
+	#ensure that brackets are closed
+	finalItem = substr(fields[1],nchar(fields[1]), nchar(fields[1]))
+	if (finalItem == ']')
+	myrow$Verbatim = paste(myrow$Verbatim, finalItem)
 	
 	#Add info from any tiers, as they appear in the file
 	if (length(fields) > 1){
@@ -145,24 +151,33 @@ get_utt_info <- function(u){
 	}
 	
 	#Next, find & replace clarification/elaboration sequences like this: "a bobby [= a thin bobbypin]" -> "a bobby"
+
 	w <- 1
 	wmax <- length(words) + 1
 	while (w < wmax){
 		#Did we hit a gloss sequence?
-		if ((substr(words[w],1,1) == "[")){
-			#Find where the gloss ends, then clean up
-			closebracket <- grep("]",  words[w:length(words)], fixed=TRUE)[1] + (w-1)
-			goo <- closebracket
-			for (v in w:closebracket){
-				words[v] <- ""
-			}
+		if ((substr(words[w],1,1) == "[") ){			
+			if (length(grep(reformulations, words[w])) > 0){
+				#this is a reformulation marker, don't do any deletion
+			} else {
+				#Find where the gloss ends, then clean up
+				closebracket <- grep("]",  words[w:length(words)], fixed=TRUE)[1] + (w-1)
+				if (is.na(closebracket) | is.nan(closebracket)){
+					browser()
+				}
+				
+				goo <- closebracket
+				for (v in w:closebracket){
+					words[v] <- ""
+				}				
+			}			
 		}
 		w <- w + 1	
 	}
 	
 	#Next, delete internal notation we don't need here
 	#"[()<>&@:]"
-	words <- as.vector(mapply(gsub, "[()<>&:]","",words))
+	words <- as.vector(mapply(gsub, "[\\(\\):]","",words))
 	
 	#Remove sentence-internal periods!
 	words[1:(length(words)-1)] <- as.vector(mapply(gsub, "[.]","",words[1:(length(words)-1)]))
