@@ -93,14 +93,20 @@ read.CLAN.file <- function(f) {
 	data
 } #End read.CLAN.file
 
-get_utt_info <- function(u){		
+get_utt_info <- function(u){
+
 	#Divide the line into individual utterances & tiers
 	fields <- unlist(strsplit(u, "\n%")) #% is the marker for a tier—— just % hits issues with [% ...] comments
 	myrow <- data.frame(t(as.matrix(fields)))
 	
 	#Add utterance info
 	myrow$Speaker <- substr(fields[1], 1,3)
-	myrow$Verbatim <- substr(fields[1], 6,nchar(fields[1])-1)
+	#drop any lines that start with an @
+	remainingElements = strsplit(substr(fields[1], 6,nchar(fields[1])-1),'\n')[[1]]
+	if (length(grep('^\\@', remainingElements)) > 0){
+		remainingElements = remainingElements[-grep('^\\@', remainingElements)] 			
+	}		
+	myrow$Verbatim <- paste(remainingElements, collapse=' ')	
 	
 	#ensure that brackets are closed
 	finalItem = substr(fields[1],nchar(fields[1]), nchar(fields[1]))
@@ -140,7 +146,7 @@ get_utt_info <- function(u){
 	wmax <- length(words) + 1
 	while (w < wmax){
 		#Did we hit a gloss sequence?
-		if ((words[w]=="[:")|(words[w]=="[=?")|(words[w]=="[")){
+		if (words[w] %in% c("[:","[=?","[",'[%')){
 			#Find where the gloss ends, then clean up
 			closebracket <- grep("]",  words[w:length(words)], fixed=TRUE)[1] + (w-1)
 			words[w-1] <- ""
