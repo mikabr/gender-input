@@ -7,3 +7,4 @@
 *.Rproj
 db.yaml
 data/
+*_cache/
