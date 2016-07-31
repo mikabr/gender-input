@@ -7,7 +7,7 @@ pull <- function(x,y) {x[,if(is.name(substitute(y))) deparse(substitute(y)) else
 
 childes_db <- do.call(src_mysql, yaml::yaml.load_file("db.yaml"))
 childes_tbl <- tbl(childes_db,
-                   sql("SELECT filename, speaker, gender, child, corpus, gloss FROM words"),
+                   sql("SELECT filename, speaker, gender, child, corpus, gloss FROM words where gloss != ''"),
                    n = -1)
 
 childes_words <- childes_tbl %>%
@@ -58,4 +58,5 @@ mappify(childes_stems, "filename", "data/stemmed")
 mappify(childes_stems, "gloss", "data/stemmed")
 mappify(childes_stems, "child", "data/stemmed")
 mappify(childes_stems, "corpus", "data/stemmed")
+
 
