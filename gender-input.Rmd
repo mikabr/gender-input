@@ -46,13 +46,49 @@ metadata <- read_csv("metadata.csv")
 coded_sex <- read_csv("missing_sex.csv") %>%
   rename(coded_sex = sex)
 
-gender_counts <- nltk_counts %>%
+coded_counts <- nltk_counts %>%
   left_join(metadata) %>%
   left_join(coded_sex) %>%
   mutate(gender = ifelse(sex != "None", sex, coded_sex)) %>%
-  filter(!is.na(gender)) %>%
+  filter(!is.na(gender))
+
+gender_counts <- coded_counts %>%
   group_by(gender, gloss) %>%
   summarise(count = sum(nltk_count))
+
+# random_counts <- function() {
+#   cc <- coded_counts %>%
+#     group_by(gender, gloss) %>%
+#     summarise(count = sum(nltk_count)) %>%
+#     group_by(gloss) %>%
+#     filter(n() > 1) %>%
+# #    select(gloss, nltk_count, gender) %>%
+# #    split(.$gloss) %>%
+# #    map(~
+# #      data_frame(gloss = rep(.x$gloss, cc$nltk_count),
+# #                 gender = rep(cc$gender, cc$nltk_count))
+# #    )
+#     
+# #    group_by(gloss) %>%
+#     mutate(gender = sample(gender)) %>%
+#     group_by(gender, gloss) %>%
+#     summarise(count = sum(nltk_count))
+# }
+# 
+# freq_kl <- function(counts) {
+#   gloss_kl <- counts %>%
+#     group_by(gender) %>%
+#     mutate(prob = count / sum(count)) %>%
+#     select(-count) %>%
+#     spread(gender, prob, fill = 0) %>%
+#     filter(female != 0, male != 0) %>%
+#     mutate(kl = kl(female, male))
+#   sum(gloss_kl$kl)
+# }
+# 
+# n_samples <- 1
+# freq_kl_samples <- 1:n_samples %>% map_dbl(~random_counts() %>% freq_kl)
+# mean_freq_kl <- mean(freq_kl_samples)
 ```
 
 ## Get CDI data
@@ -74,7 +110,7 @@ eng_wg <- get_instrument_data(instrument_language = "English",
 
 For each dataset, compute proportion of children of each age and gender who produce/understand each word, fit a logistic regression to those proportions, and then estimate the area between the curves for girls and boys.
 ```{r gender_diffs}
-fit_gender_diffs <- function(dataset, form_name) {
+fit_gender_diffs <- function(dataset, form_name, save_plots = FALSE) {
   
   gender_props <- dataset %>%
     filter(!is.na(sex), type == "word") %>%
@@ -83,38 +119,130 @@ fit_gender_diffs <- function(dataset, form_name) {
            definition = gsub("\\*", "", definition)) %>%
     select(-value) %>%
     gather(measure, value, understands, produces) %>%
-    group_by(measure, sex, age, lexical_class, definition) %>%
+    group_by(measure, sex, age, lexical_class, category, definition) %>%
     summarise(num_true = sum(value, na.rm = TRUE),
               num_false = n() - num_true,
-              prop = num_true / n())
+              prop = num_true / n()) %>%
+    filter(form_name == "WG" | measure == "produces")
   
-  
+  width <- 0.01
   fit_group <- function(group_data) {
     model <- glm(cbind(num_true, num_false) ~ age, family = "binomial",
                  data = group_data)
-    width <- 0.1
-    ages <- seq(min(group_data$age), max(group_data$age), by = width)
+    ages <- seq(min(group_data$age), max(group_data$age),
+                by = (max(group_data$age) - min(group_data$age)) * width)
+    scaled_ages <- seq(0, 1, by = width)
     fits <- model %>%
       predict(newdata = data.frame(age = ages)) %>%
       boot::inv.logit()
-    data_frame(area = sum(fits * width))
-    
+    data_frame(age = ages, scaled_age = scaled_ages, fit = fits)
+  }
+  
+  compute_area <- function(group_fits) {
+    data_frame(area = sum(group_fits$fit * width))
   }
   
   gender_fits <- gender_props %>%
-    group_by(measure, sex, lexical_class, definition) %>%
+    group_by(measure, sex, lexical_class, category, definition) %>%
     nest() %>%
-    mutate(fit = map(data, fit_group)) %>%
-    select(-data) %>%
+    mutate(fits = map(data, fit_group))
+  
+  # word_gender_diffs <- gender_fits %>%
+  #   select(-data) %>%
+  #   unnest() %>%
+  #   spread(sex, fit) %>%
+  #   mutate(gender_diff = Female - Male) #%>%
+  #   #group_by(definition)
+  #   #mutate(threshold_diff = max(abs(gender_diff)) > 0.16)
+  # 
+  # ggplot(word_gender_diffs,
+  #        aes(x = age, y = gender_diff, group = definition,
+  #                               colour = lexical_class)) +
+  #   facet_wrap(~category) +
+  #   geom_hline(yintercept = 0, colour = "grey", linetype = "dashed") +
+  #   geom_line(colour = "grey", alpha = 0.5,
+  #             data = word_gender_diffs %>% filter(!threshold_diff)) +
+  #   geom_line(data = word_gender_diffs %>% filter(threshold_diff)) +
+  #   geom_dl(aes(label = definition),
+  #           method = list("last.points", dl.trans(x = x + 0.1),
+  #                         cex = 0.5, fontfamily = font),
+  #           data = word_gender_diffs %>%
+  #             filter(age == max(age), threshold_diff)) +
+  #   scale_colour_solarized(guide = FALSE) +
+  #   xlim(c(min(word_gender_diffs$age), max(word_gender_diffs$age) + 3))
+  # 
+  #   lexical_classes <- list("Nouns" = "nouns",
+  #                       "Adjectives & Verbs" = c("adjectives", "verbs"),
+  #                       "Function Words" = "function_words",
+  #                       "Other" = "other")
+  # 
+  # cat_gender_diffs <- word_gender_diffs %>%
+  #   group_by(lexical_class, category, age) %>%
+  #   summarise(Female = mean(Female), Male = mean(Male)) %>%
+  #   ungroup() %>%
+  #   mutate(gender_diff = Female - Male,
+  #          lexical_class = `levels<-`(factor(lexical_class), lexical_classes))
+  # 
+  # rep_cat_gender_diffs <- bind_rows(
+  #   cat_gender_diffs, cat_gender_diffs, cat_gender_diffs, cat_gender_diffs
+  # ) %>%
+  #   split(.$lexical_class) %>%
+  #   map_df(~.x %>%
+  #            mutate(focus = c(rep(TRUE, nrow(.x) / 4),
+  #                             rep(FALSE, 3 * nrow(.x) / 4))))
+  # 
+  # ggplot(rep_cat_gender_diffs,
+  #        aes(x = age, y = gender_diff, group = category,
+  #            colour = lexical_class)) +
+  #   facet_grid(. ~ lexical_class) +
+  #   geom_hline(yintercept = 0, colour = "grey", linetype = "dashed") +
+  #   geom_line(alpha = 0.3, colour = "grey",
+  #             data = rep_cat_gender_diffs %>%
+  #               select(-lexical_class) %>%
+  #               filter(!focus)) +
+  #   geom_line(data = filter(rep_cat_gender_diffs, focus)) +
+  #   geom_dl(aes(label = category),
+  #           method = list("last.qp", dl.trans(x = x + 0.1),
+  #                         cex = 0.5, fontfamily = font)) +
+  #   scale_colour_solarized(guide = FALSE) +
+  #   scale_x_continuous(name = "Age (months)",
+  #                      limits = c(min(word_gender_diffs$age),
+  #                                 max(word_gender_diffs$age) + 7),
+  #                      breaks = seq(min(word_gender_diffs$age) - 1,
+  #                                   max(word_gender_diffs$age), 5)) +
+  #   ylab("Mean difference between\n proportion of girls and\n proportion of boys")
+  #   
+  # if (save_plots) {
+  #   gender_fits %>%
+  #     select(-data) %>%
+  #     unnest() %>%
+  #     split(paste(.$measure, .$definition)) %>%
+  #     walk(function(plt_data) {
+  #       dir <- paste(form_name, plt_data$measure[[1]], sep = "_")
+  #       filename <- gsub("[ \\/]", "_", plt_data$definition[[1]])
+  #       plt <- ggplot(plt_data, aes(x = age, y = fit, colour = sex)) +
+  #         facet_wrap(~definition) +
+  #         geom_line() +
+  #         scale_colour_solarized(name = "") +
+  #         ylim(c(0, 1)) +
+  #         labs(x = "Age (months)", y = "Proportion of children") +
+  #         theme(legend.key = element_blank())
+  #       ggsave(sprintf("item_plots/%s/%s.png", dir, filename),
+  #              plt, width = 6, height = 4)
+  #     })
+  # }  
+  # 
+  gender_areas <- gender_fits %>%
+    mutate(area = map(fits, compute_area)) %>%
+    select(-data, -fits) %>%
     unnest()
   
-  gender_fits %>%
+  gender_areas %>%
     spread(sex, area) %>%
     rename(female_area = Female, male_area = Male) %>%
     mutate(area_diff = female_area - male_area,
            form = form_name,
-           form_measure = paste(form, measure, sep = "_")) %>%
-    filter(form == "WG" | measure == "produces")
+           form_measure = paste(form, measure, sep = "_"))
   
 }
 
@@ -124,19 +252,23 @@ gender_diffs_ws <- fit_gender_diffs(eng_ws, "WS")
 gender_diffs <- bind_rows(gender_diffs_wg, gender_diffs_ws)
 ```
 
-```{r}
+To estimate the reliability of area differences, split datasets into groups and find the correlation between the groups' area difference estimates.
+```{r reliability}
 random_group <- function(n, probs) {
   g <- findInterval(seq(0, 1, length = n), c(0, cumsum(probs)),
                     rightmost.closed = TRUE)
   names(probs)[sample(g)]
 }
 
-fit_gender_diffs_groups <- function(dataset, form_name) {
+fit_gender_diffs_groups <- function(dataset, form_name, n_groups = 2) {
+  
+  group_probs <- setNames(rep(1 / n_groups, n_groups),
+                          paste0("group", 1:n_groups))
   
   groups <- dataset %>%
     select(data_id) %>%
     unique() %>%
-    mutate(group = random_group(n(), c("group1" = 0.5, "group2" = 0.5)))
+    mutate(group = random_group(n(), group_probs))
   
   dataset_grouped <- dataset %>%
     left_join(groups)
@@ -149,15 +281,12 @@ fit_gender_diffs_groups <- function(dataset, form_name) {
     reduce(~left_join(.x, .y,
                       by = c("measure", "lexical_class", "definition")))
   
-  group_rsq <- joined_groups %>%
-    split(.$measure) %>%
-    map(~lm(area_diff.y ~ area_diff.x, data = .)) %>%
-    map(summary) %>%
-    map_dbl("adj.r.squared")
-  
-  data.frame(measure = names(group_rsq),
-             adj_rsq = group_rsq,
-             row.names = NULL)
+  joined_groups %>%
+    group_by(measure) %>%
+    nest() %>%
+    mutate(cor = map_dbl(data, ~cor(.x$area_diff.y, .x$area_diff.x)),
+           reliability = n_groups * cor / (1 + (n_groups - 1) * cor)) %>%
+    select(-data)
   
 }
 
@@ -166,6 +295,8 @@ gender_diffs_ws_groups <- fit_gender_diffs_groups(eng_ws, "WS")
 
 gender_diffs_groups <- bind_rows(gender_diffs_wg_groups,
                                  gender_diffs_ws_groups)
+
+knitr::kable(gender_diffs_groups)
 ```
 
 Plot distribution of acquisition differences for each measure and lexical category.
@@ -189,10 +320,14 @@ gender_diff_means <- plt_gender_diffs %>%
   group_by(form_measure, lexical_class) %>%
   summarise(mean_area_diff = mean(area_diff))
 
-binwidth <- 0.1
+gender_diff_cat_means <- plt_gender_diffs %>%
+  group_by(form_measure, lexical_class, category) %>%
+  summarise(mean_area_diff = mean(area_diff))
+
+binwidth <- 0.005
 ggplot(plt_gender_diffs, aes(x = area_diff, colour = lexical_class)) +
-  coord_fixed(ratio = 2 * binwidth, ylim = c(0, 18)) +
-  # facet_grid(form_measure ~ lexical_class) +
+  coord_fixed(ratio = 4 * binwidth, ylim = c(0, 8)) +
+  #facet_grid(form_measure ~ lexical_class) +
   facet_grid(lexical_class ~ form_measure) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "grey",
              size = 0.1) +
@@ -271,32 +406,44 @@ item_gender_counts <- gender_counts %>%
 
 Compute various metrics of item frequency differences.
 ```{r item_gender_data}
-gsq <- function(female, male) {
-  a <- female
-  b <- male
-  c <- sum(female)
-  d <- sum(male)
-  e_1 <- c * (a + b) / (c + d)
-  e_2 <- d * (a + b) / (c + d)
-  2 * (a * log(a / e_1) + b * log(b / e_2))
-}
-
-
-mut_inf <- function(female, male) {
-  log2(female / sum(female) * (sum(female) + sum(male)) / (female + male))
-}
-
-kl <- function(female, male) {
-  p <- female / sum(female)
-  q <- male / sum(male)
-  p * log(p / q)
-}
-
+# gsq <- function(female, male) {
+#   a <- female
+#   b <- male
+#   c <- sum(female)
+#   d <- sum(male)
+#   e_1 <- c * (a + b) / (c + d)
+#   e_2 <- d * (a + b) / (c + d)
+#   2 * (a * log(a / e_1) + b * log(b / e_2))
+# }
+# 
+# 
+# mut_inf <- function(female, male) {
+#   log2(female / sum(female) * (sum(female) + sum(male)) / (female + male))
+# }
+# 
+# kl <- function(female, male) {
+#   p <- female / sum(female)
+#   q <- male / sum(male)
+#   p * log(p / q)
+# }
+# 
 item_gender_data <- item_gender_counts %>%
-  mutate(mut_inf = mut_inf(female, male),
-         gsq = gsq(female, male),
-         kl = kl(female, male)) %>%
-  rename(female_count = female, male_count = male)
+  rename(female_count = female, male_count = male) %>%
+  mutate(mut_inf = mut_inf(female_count, male_count),
+    #gsq = gsq(female_count, male_count),
+    #kl = kl(female_count, male_count),
+    log_female_prob = log(female_count / sum(female_count)),
+    log_male_prob = log(male_count / sum(male_count)),
+    log_prob = log((female_count + male_count) /
+                     (sum(female_count) + sum(male_count))),
+    log_prob_ratio = log_female_prob - log_male_prob,
+    log_likelihood_ratio = log(
+      dbinom(female_count, sum(female_count), exp(log_prob)) *
+        dbinom(male_count, sum(male_count), exp(log_prob))) -
+      log(
+        dbinom(female_count, sum(female_count), exp(log_female_prob)) *
+          dbinom(male_count, sum(male_count), exp(log_male_prob))),
+    llr_p = pchisq(-2 * log_likelihood_ratio, 1, lower.tail = FALSE))
 ```
 
 Combine acquistion differences with frequency differences
@@ -304,22 +451,197 @@ Combine acquistion differences with frequency differences
 min_count <- 30
 gender_diff_freqs <- plt_gender_diffs %>%
   rename(item = definition) %>%
-  left_join(item_gender_data) %>%
-  filter(female_count > min_count, male_count > min_count) #%>%
-# mutate(label = gsub("(.*) \\(.*\\)", "\\1", item),
-#        lexical_class = `levels<-`(factor(lexical_class), lexical_classes))
+  inner_join(item_gender_data) %>%
+#  inner_join(item_gender_counts) %>%
+#  rename(female_count = female, male_count = male) %>%
+  filter(female_count > min_count, male_count > min_count)
+
+gender_diff_freqs_ws <- gender_diff_freqs %>%
+  filter(form_measure == "WS_produces")
+
+gender_diff_freqs_ws %>%
+  mutate(llr_p_adj = p.adjust(llr_p, method = "hochberg")) %>%
+  group_by() %>%
+  summarise(sig = sum(llr_p_adj < 0.01), total = n(), prop = sig / total)
+gender_diff_freqs_ws %>%
+  group_by(lexical_class) %>%
+  summarise(sig = sum(llr_p < 0.01), total = n(), prop = sig / total)
+gender_diff_freqs_ws %>%
+  group_by(category) %>%
+  summarise(sig = sum(llr_p < 0.01), total = n(), prop = sig / total)
+```
+
+```{r}
+# cdi_gender_counts <- gender_diff_freqs %>%
+#   filter(form_measure == "WS_produces") %>%
+#   select(lexical_class, category, item, female_count, male_count)
+# 
+# boot_sample <- function(s) {
+#   if (!s %% 100) print(s)
+#   cdi_gender_counts %>%
+#     split(.$item) %>%
+#     map_df(function(item) {
+#       item_genders <- c(rep(1, item$female_count), rep(0, item$male_count))
+#       boot_genders <- sample(item_genders, replace = TRUE)
+#       female_count <- sum(boot_genders)
+#       male_count <- length(boot_genders) - female_count
+#       item$female_count <- sum(boot_genders)
+#       item$male_count <- length(boot_genders) - female_count
+#       item
+#     }) %>%
+#     mutate(sample = s)
+# }
+# 
+# n_samples <- 10000
+# boot_samples <- map_df(1:n_samples, boot_sample)
+# boot_samples_10k <- boot_samples
+# boot_p <- boot_samples %>%
+#   mutate(x = female_count / sum(female_count) - male_count / sum(male_count),
+#          H = ifelse(x > 0, 1, ifelse(x == 0, 0.5, 0))) %>%
+#   group_by(lexical_class, category, item) %>%
+#   summarise(p_girl = sum(H) / n_samples,
+#             p = (1 + 2 * n_samples * min(p_girl, 1 - p_girl)) / (1 + n_samples))
+# 
+# boot_mi <- boot_samples %>%
+#   group_by(sample) %>%
+#   mutate(mi = mut_inf(female_count, male_count)) %>%
+#   group_by(lexical_class, category, item) %>%
+#   summarise(mean_mi = mean(mi))
+# 
+# boot_log_probability_ratio <- boot_samples %>%
+#   group_by(sample) %>%
+#   mutate(p_female = female_count / sum(female_count),
+#          p_male = male_count / sum(male_count),
+#          p_joint = (female_count + male_count) /
+#            (sum(female_count) + sum(male_count)),
+#          lpr = log(p_female) - log(p_male)) %>%
+#   group_by(lexical_class, category, item) %>%
+#   summarise(mean_lpr = mean(lpr))
+# 
+# boot_log_likelihood <- boot_samples %>%
+# #  filter(female_count > 30, male_count > 30) %>%
+#   filter(sample < 1001) %>%
+#   group_by(sample) %>%
+#   mutate(total_female = sum(female_count),
+#          total_male = sum(male_count),
+#          p_female = female_count / total_female,
+#          p_male = male_count / total_male,
+#          joint_count = female_count + male_count,
+#          p_joint = joint_count / (total_female + total_male),
+#          log_likelihood = log(dbinom(female_count, total_female, p_female)) -
+#            log(dbinom(female_count, total_female, p_joint))) %>%
+#          # log_likelihood = log((dbinom(female_count, total_female, p_joint) *
+#          #                     dbinom(male_count, total_male, p_joint)) /
+#          #   (dbinom(female_count, total_female, p_female) *
+#          #      dbinom(male_count, total_male, p_male)))) %>%
+#          # log_likelihood = dbinom(female_count, total_female, p_joint, log = TRUE) -
+#          #   dbinom(female_count, total_female, p_female, log = TRUE)) %>%
+#          # log_likelihood = (dbinom(female_count, total_female, p_joint, log = TRUE) +
+#          #                     dbinom(male_count, total_male, p_joint, log = TRUE)) -
+#          #   (dbinom(female_count, total_female, p_female, log = TRUE) +
+#          #      dbinom(male_count, total_male, p_male, log = TRUE))) %>%
+#   group_by(lexical_class, category, item) %>%
+#   summarise(mean_log_likelihood = mean(log_likelihood))
+# 
+# boot_p %>%
+#   ungroup() %>%
+#   summarise(sig = sum(p < 0.01), total = n(), prop = sig / total)
+# boot_p %>%
+#   group_by(lexical_class) %>%
+#   summarise(sig = sum(p < 0.01), total = n(), prop = sig / total)
+# boot_p %>%
+#   group_by(category) %>%
+#   summarise(sig = sum(p < 0.01), total = n(), prop = sig / total) %>%
+#   arrange(desc(prop))
+# boot_p %>%
+#   ungroup() %>%
+#   filter((p_girl == 1))
+# 
+# ggplot(boot_p, aes(x = p_girl)) +
+#   geom_density()
+# ggplot(boot_log_likelihood, aes(x = mean_log_likelihood)) +
+#   geom_density()
+
+# boot_mi <- boot_mi_samples %>%
+#   group_by(form_measure, lexical_class) %>%
+#   summarise(ci_lower = ci_lower(mi),
+#             ci_upper = ci_upper(mi),
+#             mi = mean(mi))
+
+#gender_mi <- cdi_gender_counts %>% summarise_count_data()
+#   mutate(mi_gender = mut_inf(female_count, male_count)) %>%
+# #  group_by(form_measure, lexical_class, category) %>%
+#   group_by(form_measure, lexical_class) %>%
+#   summarise(mi = mean(mi_gender)) %>%
+#   mutate(lexical_class = factor(lexical_class,
+#                                 levels = rev(levels(lexical_class))))
+
+# ggplot(boot_mi_samples %>% filter(form_measure == "WS_produces"),
+#        aes(x = lexical_class, y = mi)) +
+#   #facet_grid(. ~ form_measure) +
+#   coord_flip() +
+#   geom_violin(colour = solarized_palette(2)[2]) +
+#   geom_point(data = gender_mi %>% filter(form_measure == "WS_produces"),
+#              colour = solarized_palette(2)[1]) +
+#   scale_colour_solarized(name = "") +
+#   labs(y = "Mutual information between speech to girls and to boys", x = "")
+
+# ggplot(gender_kl, aes(x = lexical_class, y = kl)) +
+#   facet_grid(. ~ form_measure) +
+#   coord_flip() +
+#   geom_point(colour = solarized_palette(2)[1]) +
+# #  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper),
+#   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),
+#                   data = random_kl,
+#                   colour = solarized_palette(2)[2]) +
+#   labs(y = "Kullback-Leibler divergence between speech to girls and to boys", x = "")
+```
+
+Plot frequency to boys against frequency to girls.
+```{r freq_scatter}
+n_label <- 20
+measure <- "log_prob_ratio"
+label_threshold <- sort(abs(gender_diff_freqs_ws[[measure]]),
+                        decreasing = TRUE)[n_label]
+gender_diff_freqs_ws <- gender_diff_freqs_ws %>%
+  mutate(label = abs(log_prob_ratio) >= label_threshold,
+         sig = llr_p < 0.01)
+labeled <- gender_diff_freqs_ws %>% filter(label)
+ggplot(gender_diff_freqs_ws,
+       aes(x = log_female_prob, y = log_male_prob)) +
+  coord_fixed() +
+  geom_abline(slope = 1, intercept = 0, colour = "grey",
+              linetype = "dashed") +
+  geom_point(colour = "lightgrey", alpha = 0.6, size = 0.5,
+             data = gender_diff_freqs_ws %>% filter(!sig)) +
+  geom_point(colour = "black", alpha = 0.6, size = 0.5,
+             data = gender_diff_freqs_ws %>% filter(sig)) +
+  geom_text_repel(aes(label = item, colour = lexical_class), family = font,
+                  size = 2.5, box.padding = unit(0.35, "lines"),
+                  point.padding = unit(0.3, "lines"), segment.color = "grey",
+                  nudge_x = ifelse(labeled$log_prob_ratio > 0, 0.7, 0),
+                  nudge_y = ifelse(labeled$log_prob_ratio < 0, 0.7, 0),
+                  data = labeled) +
+  scale_colour_solarized(guide = FALSE) +
+  labs(x = "Log probability in speech to girls",
+       y = "Log probability in speech to boys")
 ```
 
 Predict acquisition differences from frequency differences.
 ```{r gender_diff_models}
-predictor <- "mut_inf"
+predictor <- "log_prob_ratio"
+predictor_formula <- as.formula(sprintf("area_diff ~ %s", predictor))
+
+gender_diff_freqs_content <- gender_diff_freqs %>%
+  filter(lexical_class != "Function Words")
+
 gender_diff_lexcat_models <- gender_diff_freqs %>%
   group_by(form_measure, lexical_class) %>%
   nest() %>%
-  mutate(model = map(data, ~lm(as.formula(sprintf("area_diff ~ %s", predictor)),
-                               data = .)),
-         results = map(model, ~broom::tidy(.x) %>%
-                         mutate(rsq = summary(.x)$r.squared))) %>%
+  mutate(model = data %>%
+           map(~lm(predictor_formula, data = .)),
+         results = model %>% map(~broom::tidy(.x) %>%
+                                   mutate(rsq = summary(.x)$r.squared))) %>%
   select(form_measure, lexical_class, results) %>%
   unnest()
 
@@ -328,13 +650,9 @@ knitr::kable(gender_diff_lexcat_models)
 gender_diff_models <- gender_diff_freqs %>%
   group_by(form_measure) %>%
   nest() %>%
-  mutate(model = map(data,
-                     # ~lm(as.formula(sprintf("area_diff ~ %s + lexical_class",
-                     ~lm(as.formula(sprintf("area_diff ~ %s",
-                                            predictor)),
-                         data = .)),
-         results = map(model, ~broom::tidy(.x) %>%
-                         mutate(rsq = summary(.x)$r.squared))) %>%
+  mutate(model = data %>% map(~lm(predictor_formula, data = .)),
+         results = model %>% map(~broom::tidy(.x) %>%
+                                   mutate(rsq = summary(.x)$r.squared))) %>%
   select(form_measure, results) %>%
   unnest()
 
@@ -350,7 +668,7 @@ ggplot(gender_diff_freqs, aes_string(x = predictor, y = "area_diff")) +
   geom_text(aes(label = label, colour = lexical_class), size = 3,
             family = font) +
   geom_smooth(colour = "black", method = "lm", se = FALSE) +
-  geom_text(aes(label = sprintf("bar(R)^2==%.2f", rsq)), parse = TRUE,
+  geom_text(aes(label = sprintf("R^2==%.2f", rsq)), parse = TRUE,
             x = 0.004, y = 1, family = font,
             data = gender_diff_lexcat_models) +
   scale_colour_solarized(guide = FALSE) +
@@ -360,20 +678,21 @@ ggplot(gender_diff_freqs, aes_string(x = predictor, y = "area_diff")) +
 
 Plot acquisition differences against frequency differences for content words.
 ```{r plot_gender_diff_freqs, fig.width=10, fig.height=3}
-ggplot(gender_diff_freqs, aes_string(x = predictor, y = "area_diff")) +
+ggplot(gender_diff_freqs,
+       aes_string(x = predictor, y = "area_diff")) +
   facet_wrap(~form_measure) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "grey") +
   geom_jitter(size = 0.5, colour = "grey", alpha = 0.5) +
   geom_text_repel(aes(label = label, colour = lexical_class),
-                  data = filter(gender_diff_freqs, outlier),
+                  data = filter(gender_diff_freqs_content, outlier),
                   segment.size = 0.3, point.padding = unit(0.2, "lines"),
                   family = font, size = 2.5) +
   geom_smooth(colour = "black", method = "lm", se = FALSE) +
-  geom_text(aes(label = sprintf("bar(R)^2==%.2f", rsq)), parse = TRUE,
-            x = -1, y = 4.3, hjust = "left", family = font,
+  geom_text(aes(label = sprintf("R^2==%.2f", rsq)), parse = TRUE,
+            x = -1, y = 0.35, hjust = "left", family = font,
             data = gender_diff_models) +
   scale_colour_solarized(guide = FALSE) +
   ylab("Area between girls' & boys'\n growth curves") +
-  xlab("Mutual information between girl-directed & boy-directed speech (bits)")
+  xlab("Log ratio of probability in girl-directed to boy-directed speech")
 ```
