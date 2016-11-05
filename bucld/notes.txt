@@ -1,0 +1,39 @@
+more about points of freq diff slide
+confidence intervals
+probability ratio strata (contour lines)
+where's "he"?
+
+
+say colour mapping early
+
+directions of causation / inter-relationship (girls talk more -> parents talk more customized)
+
+line saying that no WG produces because floor
+
+clearer framing of the question
+what are you implying...
+questions we would want to ask -- what we can answer, what we can't?
+causation circularity earlier
+sharpen item differences question -- child interest? parent talk?
+slide: why are there these differences, circular arrows
+
+
+comment on the overall girl-advantage more
+
+mention CDI correlation with vocab size
+distributions of slopes and intercepts?
+speaking style diffs
+
+bunch of examples of trajectories
+label dotplot "number of words"
+
+take out LLR math (and whole slide?)
+
+axis labels in relationship plot too long -> reduce to bare minimum of directions
+or say verbatim?
+build
+
+WG/WS acronym intro
+mention prediction approach (AoA from frequency, etc)
+
+explain the star thing explicitly

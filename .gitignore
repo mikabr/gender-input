@@ -7,4 +7,7 @@
 *.Rproj
 db.yaml
 data/
+data_eng/
+data_other_langs/
+raw_data.feather
 *_cache/

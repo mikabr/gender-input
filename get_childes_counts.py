@@ -8,7 +8,7 @@ def get_corpus_reader(language):
     return CHILDESCorpusReader(corpus_root, r'%s.*/.*\.xml' % language[:3].title())
 
 # Takes a fileid, gets counts of all the words for that file, writes a csv
-def get_file_counts(corpus_reader, corpus_file, meta_writer):
+def get_file_counts(corpus_reader, corpus_file, meta_writer, language):
     base_directory = os.path.dirname(corpus_file)
     directory = os.path.join('data', base_directory)
     if not os.path.exists(directory):
@@ -21,10 +21,10 @@ def get_file_counts(corpus_reader, corpus_file, meta_writer):
         print "Getting counts for %s" % corpus_file
         sex = corpus_reader.sex(corpus_file)[0]
         age = corpus_reader.age(corpus_file, month=True)[0]
-        meta_writer.writerow([base_file, str(sex), str(age)])
+        meta_writer.writerow([language, base_file, str(sex), str(age)])
         corpus_participants = corpus_reader.participants(corpus_file)[0]
         not_child = [value['id'] for key, value in corpus_participants.iteritems() if key != 'CHI']
-        corpus_words = corpus_reader.words(corpus_file, speaker=not_child, replace=True, stem=True)
+        corpus_words = corpus_reader.words(corpus_file, speaker=not_child, replace=True, stem=False)
         freqs = nltk.FreqDist(corpus_words)
         writer = UnicodeWriter(open(filename, 'w'))
         writer.writerow(["word", "count"])
@@ -35,9 +35,13 @@ def get_file_counts(corpus_reader, corpus_file, meta_writer):
                 print "couldn't write word %s with count %d" % (word, count)
 
 
-corpus_root = nltk.data.find('corpora/childes/data-xml/English/Eng-NA-MOR')
-corpus_reader = CHILDESCorpusReader(corpus_root, r'.*/.*\.xml')
+# languages = ["Croatian", "Danish", "English", "French (Quebec)", "Italian",
+#              "Norwegian", "Russian", "Spanish", "Swedish", "Turkish"]
+languages = ["English"]
+corpus_root = nltk.data.find('corpora/childes/data-xml')
 meta_writer = UnicodeWriter(open('data/metadata.csv', 'a'))
-meta_writer.writerow(["filename", "sex", "age"])
-for f in corpus_reader.fileids():
-    get_file_counts(corpus_reader, f, meta_writer)
+meta_writer.writerow(["language", "filename", "sex", "age"])
+for language in languages:
+    corpus_reader = get_corpus_reader(language)
+    for f in corpus_reader.fileids():
+        get_file_counts(corpus_reader, f, meta_writer, language)

@@ -1,0 +1,28 @@
+Mike
+- Eleanor Maccoby paper attached... I probably shared this already. :)
+- build the log likelihood equations a bit slower - equation density will scare some BUCLD people. :)
+- ev suggests gender norming the CDI on turk. that's a good idea!
+- can cite your aoa pred cogsci paper when you talk about extending AoA findings.
+- reciprocal causality slide would be good since ray wasn't listening. :)
+- it would be good to talk about how you can answer "what" questions - but I disagree that this should come before previous work?
+
+Hmm... I guess I might keep the methods maybe? But agreed about equations.
+
+I think input is interesting but incomplete, you can just present it briefly as one part of the picture. I think effect sizes on the probability ratio will calibrate people to interesting facts. E.g., is it a 2x increase in "doll"? 10x? 1.5x?
+
+
+Stephan
+
+-- on 'acquisition trajectories,' call it a dotplot, not a histogram-like-thingy. "like a histogram, but where each dot is a lexical item." You could label the left and the right extremes as "boys learn faster" and "girls learn faster"
+
+-- you could introduce your subversive color convention by referring back to the blue and pink babies picture. You could do something cute with the original picture like replace the color range in photoshop "just to emphasize how prevalent environmental queues are..."
+
+--someone (Ted?) mentioned that they'd expect to see more 'truck', 'vroom', etc. in speech to boys. I like Mike's explanation, I wonder if we can see this in the data (there aren't that many instances of vroom, after all)
+
+-- for the cross-language TEs, someone might ask why "mine" in is girl directed in Spanish— note that this word is inflected (mía)
+
+-- I wonder again if framing wrt the Eriksson et al. (2012) paper might help with the structure. I know in the beginning we were hoping to look at how language shapes gender development, but it seems like the current question in the literature is how much of the early vocabulary learning advantage for girls is because of <innate> neurophysiological differences, vs. differences in the environment and socialization. Eriksson et al. find across 14k MCDI administrations that there is a main effect of gender that isn't modulated by social group: they suggest that this means that there are either neuro/maturational differences or that that gender-based differences in input are stable across the groups (they argue this is unlikely, Sweden vs. Austria). But maybe the populations they study are more uniform because of sampling biases (metropolitan, European)? An alternative way to approach this question is through the individual lexical items, where we can draw a direct link between exposure and vocabulary outcome. We show that some of the gender-related differences in acquisition can be related to unigram frequency in the input;  the next task is to see how much more of the differences we can relate to more complex features of the input. In any case, take a look at that paper—I think it might clarify substantially our potential contribution here.
+
+-- I think we should stress that by looking at items, we can link outcomes to estimates of exposure for individual words, which none of the previous studies on the effect of gender have done.
+
+-- you could set off the asterisked terms with <brackets>
