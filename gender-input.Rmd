@@ -284,21 +284,21 @@ gender_diff_cat_means <- plt_gender_diffs %>%
 Plot distribution of acquisition differences for English.
 ```{r}
 binwidth <- 0.005
-fms <- plt_gender_diffs$form_measure %>% unique() %>% rev()
-labs <- fms %>% gsub(pattern = "_", replacement = " ")
+#fms <- plt_gender_diffs$form_measure %>% unique() %>% rev()
+#labs <- fms %>% gsub(pattern = "_", replacement = " ")
 demo_gender_diffs <- plt_gender_diffs %>%
-  filter(language == "English") %>%
-  mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
+  filter(language == "English", form_measure == "WS_produces") #%>%
+  #mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
 demo_means <- gender_diff_means %>%
-  filter(language == "English") %>%
-  mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
+  filter(language == "English", form_measure == "WS_produces") #%>%
+  #mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
 demo_labels <- plt_gender_diffs %>%
-  filter(language == "English", outlier) %>%
-  mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
+  filter(language == "English", form_measure == "WS_produces", outlier) #%>%
+  #mutate(form_measure = factor(form_measure, levels = fms, labels = labs))
 
 ggplot(demo_gender_diffs, aes(x = area_diff)) +
   coord_fixed(ratio = 4 * binwidth, ylim = c(0, 11)) +
-  facet_grid(form_measure ~ .) +
+  #facet_grid(form_measure ~ .) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "grey",
              size = 0.2) +
   geom_vline(aes(xintercept = mean_area_diff),
@@ -316,7 +316,7 @@ ggplot(demo_gender_diffs, aes(x = area_diff)) +
   scale_y_continuous(name = "Number of words", breaks = NULL) +
   labs(x = "Area between girls' and boys' acquisition trajectories")
 
-ggsave("bucld/english_cdi_diffs.png", width = 6, height = 5)
+ggsave("bucld/english_ws_cdi_diffs.png", width = 6, height = 3)
 ```
 
 Plot distribution of acquisition differences for all languages.
@@ -892,21 +892,27 @@ ggplot(gender_diff_freqs_content,
 Plot acquisition differences against frequency differences for all words.
 ```{r plot_gender_diff_freqs, fig.width=10, fig.height=3}
 gdf <- gender_diff_freqs %>%
-  filter(form_measure != "WG_produces") %>%
-  mutate(form_measure = gsub("_", " ", form_measure))
+  filter(form_measure == "WS_produces")
+  #filter(form_measure != "WG_produces") %>%
+  #mutate(form_measure = gsub("_", " ", form_measure))
 gdm <- gender_diff_models %>%
-  filter(form_measure != "WG_produces") %>%
-  mutate(form_measure = gsub("_", " ", form_measure),
+  filter(form_measure == "WS_produces") %>%
+  #filter(form_measure != "WG_produces") %>%
+  mutate(#form_measure = gsub("_", " ", form_measure),
          p = map_dbl(p.value, ~max(.x, 0.0001)))
 ggplot(gdf, aes_string(x = predictor, y = "area_diff")) +
-  facet_wrap(~form_measure) +
+  #facet_wrap(~form_measure) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "grey") +
-  geom_jitter(size = 0.5, colour = "grey", alpha = 0.5) +
-  geom_text_repel(aes(label = label, colour = direction),
+  geom_jitter(size = 0.5, colour = "darkgrey", alpha = 0.5) +
+  geom_label_repel(aes(label = label, colour = direction),
                   data = filter(gdf, outlier),
-                  segment.size = 0.3, point.padding = unit(0.2, "lines"),
-                  family = font, size = 3) +
+                  segment.size = 0.4, point.padding = unit(0.3, "lines"),
+                  min.segment.length = unit(0.1, "lines"),
+                  #label.r = unit(0.1, "lines"),
+                  #label.size = 0.25,
+                  label.padding = unit(0.2, "lines"),
+                  family = font, size = 4) +
   geom_smooth(colour = "black", method = "lm", se = FALSE) +
   geom_text(aes(label = sprintf("R^2==%.2f", rsq)), parse = TRUE,
             x = -1.5, y = 0.35, hjust = "left", family = font,
@@ -917,7 +923,7 @@ ggplot(gdf, aes_string(x = predictor, y = "area_diff")) +
   scale_colour_solarized(guide = FALSE) +
   ylab("Acquisition difference") +
   xlab("Input frequency difference")
-ggsave("bucld/models.png", width = 8, height = 4)
+ggsave("bucld/ws_models.png", width = 6, height = 5)
 ```
 
 ```{r demo_trajectories}
